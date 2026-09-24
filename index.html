@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STS Informatika Kelas 9 - SMPN 38 Bandar Lampung</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+        
+        .question-nav-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .answered { background-color: #10b981; color: white; border: 1px solid #059669; }
+        .current { border: 2px solid #3b82f6; background-color: #eff6ff; color: #1d4ed8; }
+        .unanswered { background-color: white; color: #4b5563; border: 1px solid #d1d5db; }
+        
+        .blur-bg { filter: blur(5px); pointer-events: none; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #camera-preview {
+            width: 110px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #e5e7eb;
+            background-color: #000;
+        }
+
+        .protected-result {
+            position: relative;
+        }
+        .protected-result::after {
+            content: 'DILARANG SCREENSHOT / MENGAMBIL GAMBAR';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 2.2rem;
+            color: rgba(239, 68, 68, 0.12);
+            pointer-events: none;
+            z-index: 9999;
+            white-space: nowrap;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased h-screen flex flex-col" oncontextmenu="return false;">
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="modal">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 text-center">
+            <h2 id="alertTitle" class="text-2xl font-bold text-red-600 mb-4">Peringatan!</h2>
+            <p id="alertMessage" class="text-gray-700 mb-6 text-sm whitespace-pre-line"></p>
+            <button onclick="closeAlert()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded focus:outline-none w-full transition">Mengerti</button>
+        </div>
+    </div>
+
+    <!-- Confirm Submit Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h2 id="confirmTitle" class="text-2xl font-bold text-gray-800 mb-4">Konfirmasi Selesai</h2>
+            <p id="confirmMessage" class="text-gray-700 mb-6">Apakah Anda yakin ingin menyelesaikan ujian ini?</p>
+            <div class="flex justify-end space-x-4">
+                <button onclick="closeConfirm()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded focus:outline-none">Batal</button>
+                <button id="confirmActionBtn" onclick="forceSubmit()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded focus:outline-none">Ya, Selesai</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainContainer" class="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+        
+        <!-- LOGIN SCREEN -->
+        <div id="loginScreen" class="absolute inset-0 flex items-center justify-center bg-gray-100 z-50 overflow-y-auto p-4">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full">
+                <div class="text-center mb-6">
+                    <h1 class="text-2xl font-extrabold text-blue-800 mb-1">SUMATIF TENGAH SEMESTER (STS)</h1>
+                    <h2 class="text-lg font-bold text-gray-700">INFORMATIKA KELAS 9</h2>
+                    <p class="text-xs text-gray-500 mt-1">SMPN 38 Bandar Lampung<br>Tahun Pelajaran 2026-2027</p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="studentName">Nama Lengkap Siswa</label>
+                    <input class="shadow appearance-none border rounded w-full py-3 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" id="studentName" type="text" placeholder="Masukkan Nama Lengkap" required>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="studentClass">Kelas</label>
+                    <select class="shadow appearance-none border rounded w-full py-3 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" id="studentClass" required>
+                        <option value="" disabled selected>Pilih Kelas</option>
+                        <option value="9A">9A</option>
+                        <option value="9B">9B</option>
+                        <option value="9C">9C</option>
+                        <option value="9D">9D</option>
+                    </select>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded">
+                    <h3 class="font-bold text-yellow-800 text-xs uppercase">Tata Tertib & Ketentuan Ujian:</h3>
+                    <ul class="list-disc list-inside text-xs text-yellow-700 mt-2 space-y-1">
+                        <li>Dilarang keluar layar / ganti tab / menekan tombol screenshot.</li>
+                        <li>Maksimal pelanggaran 3 kali peringatan. Pelanggaran ke-4 akan otomatis menghentikan ujian.</li>
+                        <li>Waktu pengerjaan 90 Menit (50 Soal - Poin 2/Soal).</li>
+                        <li>Perangkat tanpa kamera/mikrofon tetap diperbolehkan mengerjakan ujian tanpa hambatan.</li>
+                    </ul>
+                </div>
+
+                <button onclick="startExam()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded w-full focus:outline-none shadow transition duration-200" id="startBtn">
+                    Mulai Ujian
+                </button>
+                <p id="loginStatus" class="text-red-500 text-sm mt-4 text-center hidden"></p>
+            </div>
+        </div>
+
+        <!-- EXAM INTERFACE -->
+        <div id="examScreen" class="hidden flex-col h-full bg-gray-50">
+            <!-- Header -->
+            <header class="bg-blue-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
+                <div class="flex items-center space-x-4">
+                    <div>
+                        <h1 class="font-bold text-base md:text-lg">STS Informatika Kelas 9</h1>
+                        <p id="headerStudentInfo" class="text-xs md:text-sm text-blue-200">Nama Siswa - Kelas</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] text-blue-200 uppercase">Sisa Waktu</span>
+                        <div id="timerDisplay" class="font-mono text-lg font-bold bg-blue-900 px-3 py-1 rounded">90:00</div>
+                    </div>
+                    <!-- Camera Preview -->
+                    <div id="cameraPreviewContainer" class="hidden sm:block relative">
+                        <video id="camera-preview" autoplay muted playsinline></video>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Navigation Sidebar -->
+                <aside id="questionNav" class="w-64 bg-white border-r shadow-inner p-4 overflow-y-auto hidden md:block shrink-0 transition-all duration-300">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2 text-sm">Daftar Soal</h3>
+                    <div id="navGrid" class="grid grid-cols-4 gap-2"></div>
+                    <div class="mt-6 border-t pt-4 text-xs space-y-2">
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span> Sudah Dijawab</div>
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-white border border-gray-300 mr-2"></span> Belum Dijawab</div>
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full border-2 border-blue-500 bg-blue-50 mr-2"></span> Posisi Saat Ini</div>
+                    </div>
+                </aside>
+
+                <!-- Question Main Card -->
+                <main class="flex-1 p-4 md:p-6 overflow-y-auto relative flex flex-col">
+                    <button onclick="toggleNav()" class="md:hidden mb-4 bg-gray-200 p-2 rounded flex items-center text-xs font-bold text-gray-700 w-fit">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        Daftar Soal
+                    </button>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-8 mb-6 flex-1 flex flex-col max-w-4xl mx-auto w-full">
+                        <div class="flex justify-between items-center border-b pb-3 mb-4">
+                            <h2 class="text-lg md:text-xl font-bold text-gray-800">Soal No. <span id="currentQuestionNum">1</span></h2>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Bobot: 2 Poin</span>
+                        </div>
+                        
+                        <div id="questionText" class="text-base md:text-lg text-gray-800 mb-6 leading-relaxed flex-1"></div>
+
+                        <div id="optionsContainer" class="space-y-3 mt-auto"></div>
+                    </div>
+
+                    <!-- Bottom Controls -->
+                    <div class="flex justify-between items-center max-w-4xl mx-auto w-full">
+                        <button onclick="prevQuestion()" id="btnPrev" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 text-sm rounded shadow disabled:opacity-40 transition">
+                            &laquo; Sebelumnya
+                        </button>
+                        
+                        <button onclick="nextQuestion()" id="btnNext" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 text-sm rounded shadow transition">
+                            Selanjutnya &raquo;
+                        </button>
+
+                        <button onclick="attemptSubmit()" id="btnSubmit" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 text-sm rounded shadow transition">
+                            Selesai Ujian
+                        </button>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- RESULT SCREEN -->
+        <div id="resultScreen" class="hidden absolute inset-0 bg-gray-100 z-[100] overflow-y-auto protected-result p-4">
+            <div class="max-w-4xl mx-auto py-6">
+                <!-- Tombol Kembali ke Halaman Login di Paling Atas -->
+                <div class="mb-4 flex justify-between items-center">
+                    <button onclick="returnToLogin()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition duration-200 flex items-center justify-center space-x-2 focus:outline-none text-sm cursor-pointer active:scale-95">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Kembali ke Halaman Login</span>
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6 md:p-8 text-center">
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 mb-1">Ujian Selesai</h1>
+                    <p class="text-gray-600 text-sm mb-6">Hasil pengerjaan Anda telah tersimpan secara otomatis.</p>
+                    
+                    <div class="flex flex-wrap justify-center gap-4 mb-6">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 w-28 text-center">
+                            <span class="block text-xs text-blue-600 font-semibold mb-1">Nilai</span>
+                            <span id="finalScore" class="text-3xl font-extrabold text-blue-800">0</span>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 w-28 text-center">
+                            <span class="block text-xs text-green-600 font-semibold mb-1">Benar</span>
+                            <span id="finalCorrect" class="text-3xl font-extrabold text-green-800">0</span>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 w-28 text-center">
+                            <span class="block text-xs text-red-600 font-semibold mb-1">Salah</span>
+                            <span id="finalWrong" class="text-3xl font-extrabold text-red-800">0</span>
+                        </div>
+                    </div>
+
+                    <div id="violationReport" class="hidden bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded text-left text-xs">
+                        <h3 class="font-bold mb-1 text-sm">Catatan Pelanggaran Terdeteksi:</h3>
+                        <ul id="violationList" class="list-disc list-inside space-y-1"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Variables
+        let studentData = { name: '', class: '' };
+        let answers = new Array(50).fill(null);
+        let currentQuestionIndex = 0;
+        let timeRemaining = 90 * 60;
+        let timerInterval;
+        let warnings = 0;
+        let violationHistory = [];
+        let isExamActive = false;
+        let isReturningToLogin = false;
+        const MAX_WARNINGS = 3;
+        
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let cameraStream = null;
+
+        const questionsData = [
+            { id: 1, text: "Berpikir komputasional adalah cara berpikir untuk ....", options: { A: "Menghafalkan semua data", B: "Menyelesaikan masalah secara sistematis dan logis", C: "Menggunakan komputer tanpa aturan", D: "Menghindari penggunaan algoritma" }, answer: "B", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 2, text: "Salah satu komponen utama berpikir komputasional yang digunakan untuk menemukan kesamaan atau pola dalam data adalah ....", options: { A: "Dekomposisi", B: "Abstraksi", C: "Pengenalan pola", D: "Iterasi" }, answer: "C", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 3, text: "Jika seorang siswa memisahkan data nilai berdasarkan mata pelajaran agar lebih mudah dianalisis, kegiatan tersebut merupakan contoh ....", options: { A: "Abstraksi", B: "Dekomposisi", C: "Enkripsi", D: "Kompilasi" }, answer: "B", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 4, text: "Dalam analisis data, abstraksi bertujuan untuk ....", options: { A: "Menambahkan semua informasi", B: "Menghilangkan informasi yang tidak relevan dan fokus pada hal penting", C: "Menghapus seluruh data", D: "Menggandakan data" }, answer: "B", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 5, text: "Contoh penerapan berpikir komputasional dalam analisis data adalah ....", options: { A: "Mengurutkan nilai siswa dari yang terkecil ke terbesar", B: "Menggambar tanpa tujuan", C: "Menghapus semua data", D: "Menyalin data berulang kali tanpa analisis" }, answer: "A", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 6, text: "Data berikut: 70, 80, 80, 90, 100. Nilai yang paling sering muncul disebut ....", options: { A: "Mean", B: "Median", C: "Modus", D: "Range" }, answer: "C", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 7, text: "Jika data nilai siswa adalah 60, 70, 80, 90, dan 100, maka rata-ratanya adalah ....", options: { A: "70", B: "75", C: "80", D: "85" }, answer: "C", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 8, text: "Tujuan utama melakukan analisis data adalah ....", options: { A: "Membuat data menjadi lebih banyak", B: "Mendapatkan informasi dan kesimpulan yang berguna dari data", C: "Menghapus data yang tidak disukai", D: "Mengubah semua data menjadi angka" }, answer: "B", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 9, text: "Ketika kita menemukan bahwa penjualan meningkat setiap akhir pekan, kita sedang melakukan ....", options: { A: "Pengenalan pola", B: "Dekomposisi", C: "Abstraksi", D: "Debugging" }, answer: "A", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 10, text: "Dalam proses analisis data, langkah yang tepat setelah data dikumpulkan adalah ....", options: { A: "Mengabaikan data", B: "Mengolah dan membersihkan data", C: "Mematikan komputer", D: "Menghapus data" }, answer: "B", topic: "Berpikir Komputasional dalam Analisis Data" },
+            { id: 11, text: "Struktur data tree memiliki bentuk seperti ....", options: { A: "Jaringan tanpa hubungan", B: "Pohon dengan hubungan hierarkis", C: "Tabel dua dimensi", D: "Garis lurus saja" }, answer: "B", topic: "Struktur Data Tree" },
+            { id: 12, text: "Elemen paling atas dalam struktur tree disebut ....", options: { A: "Leaf", B: "Edge", C: "Root", D: "Child" }, answer: "C", topic: "Struktur Data Tree" },
+            { id: 13, text: "Node yang tidak mempunyai anak dalam struktur tree disebut ....", options: { A: "Root", B: "Parent", C: "Leaf", D: "Branch" }, answer: "C", topic: "Struktur Data Tree" },
+            { id: 14, text: "Hubungan antara node induk dan node anak dalam tree disebut ....", options: { A: "Edge", B: "Array", C: "Index", D: "Variable" }, answer: "A", topic: "Struktur Data Tree" },
+            { id: 15, text: "Jika node A memiliki node B dan C sebagai anaknya, maka A disebut ....", options: { A: "Leaf", B: "Child", C: "Parent", D: "Sibling" }, answer: "C", topic: "Struktur Data Tree" },
+            { id: 16, text: "Node yang mempunyai parent yang sama disebut ....", options: { A: "Root", B: "Sibling", C: "Leaf", D: "Ancestor" }, answer: "B", topic: "Struktur Data Tree" },
+            { id: 17, text: "Contoh penerapan struktur tree dalam kehidupan sehari-hari adalah ....", options: { A: "Struktur folder dan file pada komputer", B: "Lampu lalu lintas", C: "Kalkulator", D: "Jam digital" }, answer: "A", topic: "Contoh Penerapan Tree" },
+            { id: 18, text: "Struktur organisasi perusahaan dapat direpresentasikan menggunakan tree karena ....", options: { A: "Memiliki hubungan hierarkis", B: "Tidak memiliki hubungan antarbagian", C: "Semua bagian memiliki kedudukan yang sama", D: "Tidak memiliki data" }, answer: "A", topic: "Contoh Penerapan Tree" },
+            { id: 19, text: "Dalam struktur folder komputer, folder utama yang berada pada tingkat paling atas dapat dianalogikan sebagai ....", options: { A: "Leaf", B: "Root", C: "Sibling", D: "Child" }, answer: "B", topic: "Contoh Penerapan Tree" },
+            { id: 20, text: "Salah satu manfaat struktur tree adalah ....", options: { A: "Memudahkan representasi data yang memiliki hubungan hierarkis", B: "Menghilangkan semua data", C: "Membuat data tidak terstruktur", D: "Membatasi jumlah data menjadi satu" }, answer: "A", topic: "Struktur Data Tree" },
+            { id: 21, text: "Graph merupakan struktur data yang terdiri atas ....", options: { A: "Node dan edge", B: "Root dan leaf saja", C: "Baris dan kolom", D: "Folder dan file saja" }, answer: "A", topic: "Struktur Data Graph" },
+            { id: 22, text: "Dalam graph, titik atau objek yang dihubungkan disebut ....", options: { A: "Edge", B: "Vertex", C: "Root", D: "Leaf" }, answer: "B", topic: "Struktur Data Graph" },
+            { id: 23, text: "Garis yang menghubungkan dua vertex dalam graph disebut ....", options: { A: "Node", B: "Edge", C: "Root", D: "Array" }, answer: "B", topic: "Struktur Data Graph" },
+            { id: 24, text: "Contoh penggunaan graph dalam kehidupan sehari-hari adalah ....", options: { A: "Jaringan pertemanan pada media sosial", B: "Struktur folder saja", C: "Daftar belanja", D: "Dokumen teks biasa" }, answer: "A", topic: "Struktur Data Graph" },
+            { id: 25, text: "Graph yang setiap edge-nya memiliki arah disebut ....", options: { A: "Undirected graph", B: "Directed graph", C: "Binary tree", D: "Linear graph" }, answer: "B", topic: "Struktur Data Graph" },
+            { id: 26, text: "Pada graph tidak berarah, hubungan antara A dan B berarti ....", options: { A: "Hanya A yang terhubung ke B", B: "Hanya B yang terhubung ke A", C: "A dan B saling terhubung", D: "A dan B tidak memiliki hubungan" }, answer: "C", topic: "Struktur Data Graph" },
+            { id: 27, text: "Peta jalan dapat direpresentasikan menggunakan graph karena ....", options: { A: "Kota dapat menjadi vertex dan jalan dapat menjadi edge", B: "Kota menjadi edge dan jalan menjadi root", C: "Semua jalan tidak saling berhubungan", D: "Peta tidak memiliki data" }, answer: "A", topic: "Struktur Data Graph" },
+            { id: 28, text: "Graph berbobot adalah graph yang ....", options: { A: "Tidak mempunyai vertex", B: "Setiap edge atau hubungan dapat memiliki nilai tertentu", C: "Hanya mempunyai satu node", D: "Tidak mempunyai hubungan" }, answer: "B", topic: "Struktur Data Graph" },
+            { id: 29, text: "Dalam aplikasi navigasi, jarak antara dua kota dapat digunakan sebagai ....", options: { A: "Vertex", B: "Root", C: "Bobot edge", D: "Leaf" }, answer: "C", topic: "Struktur Data Graph" },
+            { id: 30, text: "Perbedaan utama tree dan graph adalah ....", options: { A: "Tree merupakan struktur hierarkis, sedangkan graph lebih umum untuk merepresentasikan hubungan", B: "Tree tidak memiliki node", C: "Graph tidak memiliki edge", D: "Tree selalu memiliki siklus" }, answer: "A", topic: "Struktur Data Graph" },
+            { id: 31, text: "Data terstruktur adalah data yang ....", options: { A: "Tidak memiliki format", B: "Tersusun dalam format tertentu sehingga mudah diolah", C: "Selalu berupa gambar", D: "Tidak dapat dianalisis" }, answer: "B", topic: "Analisis Data Terstruktur" },
+            { id: 32, text: "Contoh data terstruktur adalah ....", options: { A: "Tabel data siswa", B: "Foto pemandangan", C: "Rekaman suara", D: "Video" }, answer: "A", topic: "Analisis Data Terstruktur" },
+            { id: 33, text: "Visualisasi data digunakan untuk ....", options: { A: "Membuat data sulit dipahami", B: "Menampilkan data secara visual agar pola dan informasi lebih mudah dipahami", C: "Menghapus data", D: "Mengacak data" }, answer: "B", topic: "Visualisasi Data" },
+            { id: 34, text: "Grafik yang paling tepat untuk membandingkan jumlah siswa pada beberapa kelas adalah ....", options: { A: "Diagram batang", B: "Diagram garis", C: "Diagram pencar", D: "Peta konsep" }, answer: "A", topic: "Visualisasi Data" },
+            { id: 35, text: "Diagram lingkaran biasanya digunakan untuk menunjukkan ....", options: { A: "Perubahan data berdasarkan waktu", B: "Proporsi atau persentase bagian terhadap keseluruhan", C: "Hubungan antar-node", D: "Struktur folder" }, answer: "B", topic: "Visualisasi Data" },
+            { id: 36, text: "Grafik garis paling sesuai digunakan untuk ....", options: { A: "Menampilkan perubahan suatu data dari waktu ke waktu", B: "Menampilkan struktur organisasi", C: "Menampilkan hierarki folder", D: "Menampilkan nama siswa saja" }, answer: "A", topic: "Visualisasi Data" },
+            { id: 37, text: "Jika ingin melihat hubungan antara tinggi badan dan berat badan siswa, visualisasi yang sesuai adalah ....", options: { A: "Diagram pencar (scatter plot)", B: "Diagram lingkaran", C: "Diagram organisasi", D: "Diagram tree" }, answer: "A", topic: "Visualisasi Data" },
+            { id: 38, text: "Salah satu keuntungan visualisasi data adalah ....", options: { A: "Membuat pola data lebih sulit ditemukan", B: "Mempermudah manusia memahami informasi dari kumpulan data", C: "Menghilangkan kebutuhan terhadap data", D: "Membuat data menjadi tidak akurat" }, answer: "B", topic: "Visualisasi Data" },
+            { id: 39, text: "Saat membuat grafik, judul dan label sumbu diperlukan agar ....", options: { A: "Grafik terlihat lebih rumit", B: "Pembaca memahami informasi yang ditampilkan", C: "Data menjadi lebih banyak", D: "Warna grafik bertambah" }, answer: "B", topic: "Visualisasi Data" },
+            { id: 40, text: "Jika grafik menunjukkan jumlah pengunjung sebuah website dari Januari hingga Juni, jenis grafik yang tepat adalah ....", options: { A: "Diagram garis", B: "Diagram lingkaran", C: "Tree", D: "Diagram organisasi" }, answer: "A", topic: "Visualisasi Data" },
+            { id: 41, text: "Algoritma adalah ....", options: { A: "Kumpulan langkah sistematis untuk menyelesaikan masalah", B: "Kumpulan gambar tanpa aturan", C: "Bahasa pemrograman tertentu", D: "Perangkat keras komputer" }, answer: "A", topic: "Algoritma" },
+            { id: 42, text: "Salah satu ciri algoritma yang baik adalah ....", options: { A: "Langkah-langkahnya tidak jelas", B: "Memiliki langkah yang logis dan terurut", C: "Tidak memiliki tujuan", D: "Selalu menggunakan gambar" }, answer: "B", topic: "Algoritma" },
+            { id: 43, text: "Dalam pemrograman visual berbasis blok, program dibuat dengan cara ....", options: { A: "Menyusun blok-blok perintah", B: "Menulis seluruh kode mesin", C: "Menggambar tabel", D: "Mengetik dokumen" }, answer: "A", topic: "Pemrograman Visual" },
+            { id: 44, text: "Contoh platform pemrograman visual berbasis blok adalah ....", options: { A: "Scratch", B: "Microsoft Word", C: "Calculator", D: "File Explorer" }, answer: "A", topic: "Pemrograman Visual" },
+            { id: 45, text: "Library dalam pemrograman adalah ....", options: { A: "Kumpulan kode atau fungsi yang dapat digunakan kembali", B: "Folder untuk menyimpan gambar saja", C: "Perangkat keras komputer", D: "Sistem operasi" }, answer: "A", topic: "Library" },
+            { id: 46, text: "Tujuan penggunaan library adalah ....", options: { A: "Mempercepat dan mempermudah proses pengembangan program", B: "Membuat kode semakin panjang tanpa tujuan", C: "Menghapus semua fungsi", D: "Menghindari penggunaan kode" }, answer: "A", topic: "Library" },
+            { id: 47, text: "Modularisasi program berarti ....", options: { A: "Membagi program menjadi bagian-bagian atau modul yang lebih kecil", B: "Menggabungkan semua kode menjadi satu baris", C: "Menghapus semua fungsi", D: "Mengubah program menjadi gambar" }, answer: "A", topic: "Modularisasi" },
+            { id: 48, text: "Salah satu keuntungan modularisasi adalah ....", options: { A: "Program lebih sulit diperbaiki", B: "Program lebih mudah dikembangkan, diuji, dan dipelihara", C: "Program tidak dapat digunakan kembali", D: "Program selalu membutuhkan lebih banyak kesalahan" }, answer: "B", topic: "Modularisasi" },
+            { id: 49, text: "Perhatikan pseudocode berikut:\nMulai\nInput nilai\nJika nilai >= 75\n    Tampilkan \"Lulus\"\nJika tidak\n    Tampilkan \"Tidak Lulus\"\nSelesai\nJika nilai yang dimasukkan adalah 80, output yang dihasilkan adalah ....", options: { A: "Tidak Lulus", B: "Lulus", C: "75", D: "Error" }, answer: "B", topic: "Analisis Pseudocode" },
+            { id: 50, text: "Salah satu perbedaan utama pemrograman visual berbasis blok dan pemrograman tekstual adalah ....", options: { A: "Pemrograman blok menggunakan susunan blok, sedangkan pemrograman tekstual menggunakan sintaks berupa teks", B: "Pemrograman blok tidak menggunakan logika", C: "Pemrograman tekstual tidak membutuhkan algoritma", D: "Keduanya tidak dapat digunakan untuk membuat program" }, answer: "A", topic: "Visual vs Tekstual" }
+        ];
+
+        // Auto-request camera once on window load (Non-blocking)
+        window.onload = function() {
+            setupMediaOnce();
+        };
+
+        async function setupMediaOnce() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.warn("Media Devices API tidak didukung.");
+                return;
+            }
+            
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { max: 320 }, height: { max: 240 }, frameRate: { max: 15 } }, 
+                    audio: true 
+                }).catch(() => {
+                    return navigator.mediaDevices.getUserMedia({ 
+                        video: { width: { max: 320 }, height: { max: 240 }, frameRate: { max: 15 } } 
+                    });
+                });
+
+                if (cameraStream) {
+                    const preview = document.getElementById('camera-preview');
+                    if (preview) preview.srcObject = cameraStream;
+
+                    if (typeof MediaRecorder !== 'undefined') {
+                        const options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                        const mimeToUse = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(options.mimeType) ? options.mimeType : '';
+                        mediaRecorder = new MediaRecorder(cameraStream, mimeToUse ? { mimeType: mimeToUse, videoBitsPerSecond: 100000 } : undefined);
+                        mediaRecorder.ondataavailable = function(e) {
+                            if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+                        };
+                    }
+                }
+            } catch (err) {
+                console.warn("Izin kamera/mikrofon ditolak atau hardware bermasalah. Siswa tetap diizinkan ujian:", err);
+            }
+        }
+
+        async function startExam() {
+            const nameInput = document.getElementById('studentName').value.trim();
+            const classInput = document.getElementById('studentClass').value;
+            const statusLabel = document.getElementById('loginStatus');
+
+            if (!nameInput || !classInput) {
+                statusLabel.innerText = "Harap isi Nama dan pilih Kelas terlebih dahulu.";
+                statusLabel.classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('startBtn').innerText = "Memproses Ujian...";
+            document.getElementById('startBtn').disabled = true;
+
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen().catch(() => {});
+                }
+            } catch(e) {}
+
+            // Start recording if recorder was ready
+            if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                try { mediaRecorder.start(30000); } catch(e){}
+            }
+
+            studentData = { name: nameInput, class: classInput };
+            document.getElementById('headerStudentInfo').innerText = `${nameInput} - Kelas ${classInput}`;
+            
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('examScreen').classList.remove('hidden');
+            document.getElementById('examScreen').classList.add('flex');
+            
+            isExamActive = true;
+            setupNavigationGrid();
+            loadQuestion(0);
+            startTimer();
+            setupAntiCheat();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    showAlert("Waktu Habis!", "Waktu pengerjaan ujian Anda telah habis. Jawaban disubmit otomatis.");
+                    setTimeout(submitExam, 2500);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            const timerElem = document.getElementById('timerDisplay');
+            timerElem.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeRemaining < 300) {
+                timerElem.classList.add('text-red-400');
+            }
+        }
+
+        function setupNavigationGrid() {
+            const grid = document.getElementById('navGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 50; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'question-nav-btn unanswered shadow-sm text-sm';
+                btn.innerText = i + 1;
+                btn.id = `navBtn-${i}`;
+                btn.onclick = () => loadQuestion(i);
+                grid.appendChild(btn);
+            }
+        }
+
+        function updateNavStyle() {
+            for (let i = 0; i < 50; i++) {
+                const btn = document.getElementById(`navBtn-${i}`);
+                if (!btn) continue;
+                btn.classList.remove('current');
+                
+                if (answers[i]) {
+                    btn.classList.add('answered');
+                    btn.classList.remove('unanswered');
+                } else {
+                    btn.classList.add('unanswered');
+                    btn.classList.remove('answered');
+                }
+                
+                if (i === currentQuestionIndex) {
+                    btn.classList.add('current');
+                }
+            }
+        }
+
+        function loadQuestion(index) {
+            currentQuestionIndex = index;
+            const q = questionsData[index];
+            
+            document.getElementById('currentQuestionNum').innerText = index + 1;
+            
+            let formattedText = q.text.replace(/\n/g, '<br>');
+            if (formattedText.includes("Perhatikan pseudocode berikut:")) {
+                formattedText = formattedText.replace(/Mulai(.*)Selesai/s, "<pre class='bg-gray-100 p-3 rounded text-sm font-mono mt-2 mb-2'>Mulai$1Selesai</pre>");
+            }
+            document.getElementById('questionText').innerHTML = formattedText;
+            
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(q.options)) {
+                const label = document.createElement('label');
+                label.className = `flex items-start p-3.5 border rounded-lg cursor-pointer hover:bg-blue-50 transition ${answers[index] === key ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 bg-white'}`;
+                
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = `question-${index}`;
+                input.value = key;
+                input.className = 'mt-1 mr-3 w-4 h-4 text-blue-600';
+                if (answers[index] === key) input.checked = true;
+                
+                input.onchange = () => {
+                    answers[index] = key;
+                    updateNavStyle();
+                    loadQuestion(index);
+                };
+                
+                const span = document.createElement('span');
+                span.className = 'text-gray-800 text-sm md:text-base';
+                span.innerHTML = `<strong class="mr-2">${key}.</strong> ${value}`;
+                
+                label.appendChild(input);
+                label.appendChild(span);
+                optionsContainer.appendChild(label);
+            }
+
+            document.getElementById('btnPrev').disabled = index === 0;
+            
+            if (index === 49) {
+                document.getElementById('btnNext').classList.add('hidden');
+                document.getElementById('btnSubmit').classList.remove('hidden');
+            } else {
+                document.getElementById('btnNext').classList.remove('hidden');
+                document.getElementById('btnSubmit').classList.add('hidden');
+            }
+            
+            updateNavStyle();
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < 49) loadQuestion(currentQuestionIndex + 1);
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) loadQuestion(currentQuestionIndex - 1);
+        }
+
+        function toggleNav() {
+            const nav = document.getElementById('questionNav');
+            nav.classList.toggle('hidden');
+            if(!nav.classList.contains('hidden')){
+                nav.classList.add('absolute', 'z-20', 'h-full');
+            } else {
+                nav.classList.remove('absolute', 'z-20', 'h-full');
+            }
+        }
+
+        function clearClipboard() {
+            try {
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function' && document.hasFocus()) {
+                    navigator.clipboard.writeText('').catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        function setupAntiCheat() {
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('blur', handleBlur);
+            window.addEventListener('resize', handleResize);
+            document.addEventListener('keydown', handleKeydown);
+            
+            window.clipboardInterval = setInterval(() => {
+                if (isExamActive) {
+                    clearClipboard();
+                }
+            }, 2500);
+        }
+
+        function removeAntiCheat() {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('resize', handleResize);
+            document.removeEventListener('keydown', handleKeydown);
+            if (window.clipboardInterval) clearInterval(window.clipboardInterval);
+        }
+
+        function handleResize() {
+            if (isExamActive) {
+                clearClipboard();
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (document.hidden && isExamActive) {
+                clearClipboard();
+                registerViolation('Berpindah Tab / Terdeteksi Gesture Screenshot HP');
+            }
+        }
+
+        function handleBlur() {
+            if (isExamActive) {
+                clearClipboard();
+                registerViolation('Layar Kehilangan Fokus (Buka Aplikasi Lain / Tombol Screenshot)');
+            }
+        }
+
+        function handleKeydown(e) {
+            if (!isExamActive) return;
+            
+            if (e.key === 'PrintScreen' || e.keyCode === 44) {
+                clearClipboard();
+                registerViolation('Indikasi Screenshot (Tombol PrtSc)');
+            }
+            if (
+                (e.ctrlKey && ['c','v','x','p','s','u'].includes(e.key.toLowerCase())) ||
+                e.keyCode === 123 || 
+                (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(e.key.toLowerCase()))
+            ) {
+                e.preventDefault();
+                registerViolation(`Penggunaan Tombol Terlarang (${e.key})`);
+            }
+        }
+
+        function registerViolation(reason) {
+            if(!isExamActive) return;
+            warnings++;
+            violationHistory.push({ time: new Date().toLocaleTimeString(), type: reason });
+            
+            document.getElementById('examScreen').classList.add('blur-bg');
+            
+            if (warnings >= MAX_WARNINGS + 1) {
+                showAlert("PELANGGARAN MAKSIMAL!", `Anda telah melakukan pelanggaran batas (4x: ${reason}). Ujian dihentikan dan disubmit otomatis.`);
+                setTimeout(() => forceSubmit(), 2500);
+            } else {
+                showAlert(`PERINGATAN ${warnings}/${MAX_WARNINGS}`, `Terdeteksi: ${reason}.\n\nSetiap keluar layar/screenshot menambah poin pelanggaran. Jika mencapai 4 peringatan, ujian otomatis selesai.`);
+            }
+        }
+
+        function showAlert(title, message) {
+            document.getElementById('alertTitle').innerText = title;
+            document.getElementById('alertMessage').innerText = message;
+            document.getElementById('alertModal').style.display = 'flex';
+        }
+
+        function closeAlert() {
+            document.getElementById('alertModal').style.display = 'none';
+            document.getElementById('examScreen').classList.remove('blur-bg');
+        }
+
+        function attemptSubmit() {
+            const unansweredCount = answers.filter(a => a === null).length;
+            let msg = "Apakah Anda yakin ingin menyelesaikan ujian ini?";
+            if (unansweredCount > 0) {
+                msg = `PERHATIAN: Masih ada ${unansweredCount} soal yang BELUM dijawab! Apakah Anda tetap ingin menyimpan dan selesai?`;
+            }
+            
+            document.getElementById('confirmTitle').innerText = "Konfirmasi Selesai Ujian";
+            document.getElementById('confirmMessage').innerText = msg;
+            
+            const actionBtn = document.getElementById('confirmActionBtn');
+            actionBtn.innerText = "Ya, Selesai";
+            actionBtn.className = "bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded focus:outline-none";
+            actionBtn.onclick = forceSubmit;
+
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        function forceSubmit() {
+            closeConfirm();
+            submitExam();
+        }
+
+        async function submitExam() {
+            isExamActive = false;
+            clearInterval(timerInterval);
+            removeAntiCheat();
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                try { mediaRecorder.stop(); } catch(e){}
+            }
+            if(cameraStream){
+                try { cameraStream.getTracks().forEach(track => track.stop()); } catch(e){}
+            }
+
+            let correct = 0;
+            let wrong = 0;
+            
+            answers.forEach((ans, index) => {
+                if (ans === questionsData[index].answer) {
+                    correct++;
+                } else if (ans !== null) {
+                    wrong++;
+                }
+            });
+            
+            const score = correct * 2;
+            
+            saveRecordingLocally();
+            sendToSpreadsheet(studentData.name, studentData.class, correct, wrong, score, violationHistory);
+
+            document.getElementById('examScreen').classList.add('hidden');
+            document.getElementById('examScreen').classList.remove('flex');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalCorrect').innerText = correct;
+            document.getElementById('finalWrong').innerText = wrong;
+
+            if (violationHistory.length > 0) {
+                const vioDiv = document.getElementById('violationReport');
+                const vioList = document.getElementById('violationList');
+                vioDiv.classList.remove('hidden');
+                violationHistory.forEach(v => {
+                    const li = document.createElement('li');
+                    li.innerText = `[${v.time}] ${v.type}`;
+                    vioList.appendChild(li);
+                });
+            }
+
+            setupResultProtection();
+        }
+
+        function returnToLogin() {
+            document.getElementById('confirmTitle').innerText = "Konfirmasi Kembali";
+            document.getElementById('confirmMessage').innerText = "Apakah Anda yakin ingin selesai dan kembali ke halaman login utama?";
+            
+            const actionBtn = document.getElementById('confirmActionBtn');
+            actionBtn.innerText = "Ya, Kembali";
+            actionBtn.className = "bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded focus:outline-none";
+            actionBtn.onclick = function() {
+                isReturningToLogin = true;
+                closeConfirm();
+                location.reload();
+            };
+
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function setupResultProtection() {
+            document.getElementById('resultScreen').style.userSelect = 'none';
+            
+            const protectResult = () => {
+                if(!isReturningToLogin && !document.getElementById('resultScreen').classList.contains('hidden')) {
+                    showAlert("PERINGATAN PELANGGARAN", "Dilarang menyalin/screenshot hasil pengerjaan. Layar kembali ke halaman login.");
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                }
+            };
+
+            window.addEventListener('blur', protectResult);
+            document.addEventListener('visibilitychange', () => {
+                if(document.hidden && !isReturningToLogin) protectResult();
+            });
+        }
+
+        function saveRecordingLocally() {
+            if(!recordedChunks || recordedChunks.length === 0) return;
+            try {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                document.body.appendChild(a);
+                a.style = 'display: none';
+                a.href = url;
+                a.download = `Rekaman_Ujian_${studentData.name}_${studentData.class}.webm`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch(e) {
+                console.warn("Gagal menyimpan file video otomatis:", e);
+            }
+        }
+
+        /*
+        =============================================================================
+        SCRIPT GOOGLE APPS SCRIPT (UNTUK GOOGLE SPREADSHEET)
+        Buat Google Apps Script di Spreadsheet Anda (Extensions -> Apps Script):
+
+        function doPost(e) {
+            var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+            var data = JSON.parse(e.postData.contents);
+            
+            sheet.appendRow([
+                new Date(),
+                data.nama,
+                data.kelas,
+                data.benar,
+                data.salah,
+                data.nilai,
+                data.pelanggaran
+            ]);
+            
+            return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+        }
+        =============================================================================
+        */
+        function sendToSpreadsheet(nama, kelas, benar, salah, nilai, pelanggaranData) {
+            // Ganti 'URL_WEB_APP_ANDA_DISINI' dengan URL Web App dari hasil Deploy Google Apps Script Anda
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_8JyvoboN3VGRIMkkuM5m4z7CE9fExX6v7AMrXaUm8hO7Cc6Cgbqm40-avacV6vg/exec';
+            
+            const pelanggaranString = pelanggaranData.length > 0 
+                ? pelanggaranData.map(v => `${v.time}:${v.type}`).join(' | ') 
+                : 'Tidak ada pelanggaran';
+
+            const payload = {
+                nama: nama,
+                kelas: kelas,
+                benar: benar,
+                salah: salah,
+                nilai: nilai,
+                pelanggaran: pelanggaranString
+            };
+
+            console.log("Data siap dikirim ke spreadsheet:", payload);
+            
+            if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'URL_WEB_APP_ANDA_DISINI') {
+                fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => console.log('Data berhasil terkirim ke Google Spreadsheet'))
+                .catch(err => console.error('Gagal mengirim data ke Google Spreadsheet:', err));
+            }
+        }
+    </script>
+</body>
+</html>
